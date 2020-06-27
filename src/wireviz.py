@@ -89,14 +89,14 @@ class Harness:
                      '{}-pin'.format(n.pincount) if n.show_pincount else '']
                 # p = pinout
                 p = [[],[],[]]
-                for i, x in enumerate(n.pinout, 1):
-                    if n.hide_disconnected_pins and not n.visible_pins.get(i, False):
+                for pinnumber, pinname in zip(n.pinnumbers, n.pinout):
+                    if n.hide_disconnected_pins and not n.visible_pins.get(pinnumber, False):
                         continue
-                    p[1].append(x)
+                    p[1].append(pinname)
                     if n.ports_left:
-                        p[0].append('<p{portno}l>{portno}'.format(portno=i))
+                        p[0].append('<p{portno}l>{portno}'.format(portno=pinnumber))
                     if n.ports_right:
-                        p[2].append('<p{portno}r>{portno}'.format(portno=i))
+                        p[2].append('<p{portno}r>{portno}'.format(portno=pinnumber))
                 # l = label
                 l = [n.name if n.show_name else '', a, p, n.notes]
                 dot.node(k, label=nested(l))
@@ -348,8 +348,11 @@ class Connector:
             if len(self.pinout) != len(self.pinnumbers):
                 raise Exception('Given pinout and pinnumbers size mismatch')
 
-        if not self.pinout and not self.pinnumbers:
+        # create default lists for pinnumbers (sequential) and pinouts (blank) if not specified
+        if not self.pinnumbers:
             self.pinnumbers = list(range(1,self.pincount + 1))
+        if not self.pinout:
+            self.pinout = [''] * self.pincount
 
     def loop(self, from_pin, to_pin):
         self.loops.append((from_pin, to_pin))
