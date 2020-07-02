@@ -124,7 +124,12 @@ class Harness:
                 elif cable.gauge_unit.upper() == 'AWG':
                     awg_fmt = f' ({mm2_equiv(cable.gauge)} mm\u00B2)'
 
-            attributes = [cable.type,
+            identification = [cable.manufacturer if not isinstance(cable.manufacturer, list) else '',
+                              f'MPN: {cable.manufacturer_part_number}' if (cable.manufacturer_part_number and not isinstance(cable.manufacturer_part_number, list)) else '',
+                              f'IPN: {cable.internal_part_number}' if (cable.internal_part_number and not isinstance(cable.internal_part_number, list)) else '']
+            identification = list(filter(None, identification))
+
+            attributes = [f'{cable.type}' if cable.type else '',
                           f'{len(cable.colors)}x' if cable.show_wirecount else '',
                           f'{cable.gauge} {cable.gauge_unit}{awg_fmt}' if cable.gauge else '',
                           '+ S' if cable.shield else '',
@@ -287,6 +292,12 @@ class Harness:
             shield_name = ' shielded' if shared.shield else ''
             name = f'Cable{cable_type}, {shared.wirecount}{gauge_name}{shield_name}'
             item = {'item': name, 'qty': round(total_length, 3), 'unit': 'm', 'designators': designators}
+            if shared.manufacturer is not None:  # set manufacturer only if it exists
+                item['manufacturer'] = shared.manufacturer
+            if shared.manufacturer_part_number is not None:  # set part number only if it exists
+                item['manufacturer part number'] = shared.manufacturer_part_number
+            if shared.internal_part_number is not None:  # set part number only if it exists
+                item['internal part number'] = shared.internal_part_number
             bom_cables.append(item)
         # bundles (ignores wirecount)
         wirelist = []
@@ -298,11 +309,14 @@ class Harness:
             shared = next(iter(items.values()))
             for bundle in items.values():
                 # add each wire from each bundle to the wirelist
-                for color in bundle.colors:
-                    wirelist.append({'type': shared.type, 'gauge': shared.gauge, 'gauge_unit': shared.gauge_unit,
-                                     'length': shared.length, 'color': color, 'designator': bundle.name})
-        # join similar wires from all the bundles to a single BOM item
-        wire_group = lambda w: (w['type'], w['gauge'], w['gauge_unit'], w['color'])
+                for index, color in enumerate(bundle.colors, 0):
+                    wireinfo = {'gauge': shared.gauge, 'gauge_unit': shared.gauge_unit, 'length': shared.length, 'color': color, 'designator': bundle.name}
+                    wireinfo['manufacturer'] = bundle.manufacturer[index] if isinstance(bundle.manufacturer, list) else None
+                    wireinfo['manufacturer part number'] = bundle.manufacturer_part_number[index] if isinstance(bundle.manufacturer_part_number, list) else None
+                    wireinfo['internal part number'] = bundle.internal_part_number[index] if isinstance(bundle.internal_part_number, list) else None
+                    wirelist.append(wireinfo)
+       # join similar wires from all the bundles to a single BOM item
+        wire_group = lambda w: (w.get('type', None), w['gauge'], w['gauge_unit'], w['color'], w['manufacturer'], w['manufacturer part number'], w['internal part number'])
         groups = Counter([wire_group(v) for v in wirelist])
         for group in groups:
             items = [v for v in wirelist if wire_group(v) == group]
@@ -312,9 +326,9 @@ class Harness:
             designators = list(dict.fromkeys(designators))
             designators.sort()
             total_length = sum(i['length'] for i in items)
-            wire_type = f', {shared["type"]}' if shared['type'] else ''
-            gauge_name = f', {shared["gauge"]} {shared["gauge_unit"]}' if shared['gauge'] else ''
-            gauge_color = f', {shared["color"]}' if shared['color'] != '' else ''
+            wire_type = f', {shared["type"]}' if 'type' in shared else ''
+            gauge_name = f', {shared["gauge"]} {shared["gauge_unit"]}' if 'gauge' in shared else ''
+            gauge_color = f', {shared["color"]}' if 'color' in shared != '' else ''
             name = f'Wire{wire_type}{gauge_name}{gauge_color}'
             item = {'item': name, 'qty': round(total_length, 3), 'unit': 'm', 'designators': designators}
             bom_cables.append(item)
