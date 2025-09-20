@@ -23,3 +23,12 @@ assignees: []
 ## Minimal Example (YAML or files)
 ```yaml
 # paste the smallest YAML that reproduces the issue
+```
+
+## Environment
+- OS: Windows / macOS / Linux
+- PipeViz version or commit: vX.Y.Z / abcdef1
+- Graphviz version: dot -V
+
+## Additional Context/Logs
+_Any logs, stack traces, or images that help diagnose the issue._
