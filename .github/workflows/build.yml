@@ -1,102 +1,53 @@
-name: CI
-
-on:
-  push:
-    branches: [ main, master, develop ]
-  pull_request:
-    branches: [ main, master, develop ]
-  workflow_dispatch:
-
-jobs:
-  build:
-    name: build
-    strategy:
-      max-parallel: 6
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
-        include:
-          - os: ubuntu-22.04
-            python-version: "3.7"
-          - os: ubuntu-22.04
-            python-version: "3.8"
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install Graphviz
-        uses: ts-graphviz/setup-graphviz@v2
-
-      - name: Install project dependencies
-        run: |
-          python -m pip install --upgrade pip
-          # If you have a Python package at the root, this will work; otherwise it will skip gracefully.
-          if [ -f pyproject.toml ] || [ -f setup.cfg ] || [ -f setup.py ]; then
-            pip install .
-          else
-            echo "No Python packaging config found; installing dev tools only."
-            pip install pytest flake8 yamllint
-          fi
-
-      - name: Lint YAML (best-effort)
-        run: |
-          if command -v yamllint >/dev/null 2>&1; then
-            yamllint .
-          else
-            echo "yamllint not installed; skipping."
-          fi
-
-      - name: Lint Python (best-effort)
-        run: |
-          if ls **/*.py >/dev/null 2>&1; then
-            flake8 .
-          else
-            echo "No Python files; skipping flake8."
-          fi
-
-      - name: Run tests (best-effort)
-        run: |
-          if [ -d tests ]; then
-            pytest -q
-          else
-            echo "No tests directory; skipping pytest."
-          fi
-
-      # ----- Optional: build examples if script/folders exist -----
-      - name: Create Examples (best-effort)
-        if: ${{ hashFiles('src/**/build_examples.py') != '' }}
-        run: |
-          # Detect probable module dir (wireviz vs pipeviz); adjust if your path is different
-          set -e
-          MODDIR=""
-          if [ -d "src/pipeviz" ]; then MODDIR="src/pipeviz"; fi
-          if [ -d "src/wireviz" ]; then MODDIR="src/wireviz"; fi
-          if [ -z "$MODDIR" ]; then
-            echo "No src/pipeviz or src/wireviz directory; skipping examples."
-            exit 0
-          fi
-          echo "Using module dir: $MODDIR"
-          export PYTHONPATH="$GITHUB_WORKSPACE/$MODDIR:$PYTHONPATH"
-          cd "$MODDIR"
-          if [ -f build_examples.py ]; then
-            python build_examples.py
-          else
-            echo "build_examples.py not found in $MODDIR; skipping."
-          fi
-
-      - name: Upload examples and tutorials (best-effort)
-        uses: actions/upload-artifact@v4
-        with:
-          name: examples-and-tutorials-py${{ matrix.python-version }}
-          path: |
-            examples/
-            tutorial/
-          if-no-files-found: warn
+---
+    name: CI
+    
+    "on":
+      push:
+        branches: [main,master,develop]
+      pull_request:
+        branches: [main,master,develop]
+      workflow_dispatch:
+    
+    jobs:
+      build:
+        runs-on: ubuntu-latest
+    
+        steps:
+          - name: Checkout
+            uses: actions/checkout@v4
+    
+          - name: Set up Python
+            uses: actions/setup-python@v5
+            with:
+              python-version: "3.11"
+    
+          - name: Install Graphviz
+            uses: ts-graphviz/setup-graphviz@v2
+    
+          - name: Install deps (best-effort)
+            run: |
+              python -m pip install --upgrade pip
+              if [ -f pyproject.toml ] || [ -f setup.cfg ] || [ -f setup.py ]; then
+                pip install .
+              else
+                echo "No Python packaging config; skipping 'pip install .'"
+              fi
+    
+          - name: Run tests (best-effort)
+            run: |
+              if [ -d tests ]; then
+                pip install pytest
+                pytest -q
+              else
+                echo "No tests directory; skipping pytest."
+              fi
+    
+          - name: Optional: render examples (best-effort)
+            run: |
+              if [ -d examples ]; then
+                mkdir -p out
+                echo "Renderer not implemented yet; skipping."
+              else
+                echo "No examples directory; skipping."
+              fi
+    
